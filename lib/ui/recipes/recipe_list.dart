@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:convert';
+import '../../network/recipe_service.dart';
 import '../../network/recipe_model.dart';
 import 'package:flutter/services.dart';
 import '../recipe_card.dart';
@@ -20,7 +21,7 @@ class _RecipeListState extends State<RecipeList> {
   static const String prefSearchKey = 'previousSearches';
   late TextEditingController searchTextController;
   final ScrollController _scrollController = ScrollController();
-  List currentSearchList = [];
+  List<APIHits> currentSearchList = [];
   int currentCount = 0;
   int currentStartPosition = 0;
   int currentEndPosition = 20;
@@ -57,6 +58,12 @@ class _RecipeListState extends State<RecipeList> {
         }
       }
     });
+  }
+
+  Future<APIRecipeQuery> getrecipeData(String query, int from, int to) async {
+    final recipeJson = await RecipeService().getRecipes(query, from, to);
+    final recipeMap = json.decode(recipeJson);
+    return APIRecipeQuery.fromJson(recipeMap);
   }
 
   // TODO: Add loadRecipes
@@ -251,7 +258,7 @@ class _RecipeListState extends State<RecipeList> {
         ));
       },
 // 2
-      child: recipeStringCard(recipe.image, recipe.label),
+      child: recipeCard(recipe),
     );
   }
 }
