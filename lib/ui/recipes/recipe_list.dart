@@ -18,6 +18,7 @@ class RecipeList extends StatefulWidget {
 }
 
 class _RecipeListState extends State<RecipeList> {
+  APIRecipeQuery? _currentRecipes1;
   static const String prefSearchKey = 'previousSearches';
   late TextEditingController searchTextController;
   final ScrollController _scrollController = ScrollController();
@@ -30,12 +31,10 @@ class _RecipeListState extends State<RecipeList> {
   bool loading = false;
   bool inErrorState = false;
   List<String> previousSearches = <String>[];
-  APIRecipeQuery? _currentRecipes1;
 
   @override
   void initState() {
     super.initState();
-    loadRecipes();
 
     // TODO: Call getPreviousSearches
     getPreviousSearches();
@@ -60,21 +59,13 @@ class _RecipeListState extends State<RecipeList> {
     });
   }
 
-  Future<APIRecipeQuery> getrecipeData(String query, int from, int to) async {
+  Future<APIRecipeQuery> getRecipeData(String query, int from, int to) async {
     final recipeJson = await RecipeService().getRecipes(query, from, to);
     final recipeMap = json.decode(recipeJson);
     return APIRecipeQuery.fromJson(recipeMap);
   }
 
   // TODO: Add loadRecipes
-  Future loadRecipes() async {
-// 1
-    final jsonString = await rootBundle.loadString('assets/recipes1.json');
-    setState(() {
-// 2
-      _currentRecipes1 = APIRecipeQuery.fromJson(jsonDecode(jsonString));
-    });
-  }
 
   @override
   void dispose() {
@@ -229,22 +220,84 @@ class _RecipeListState extends State<RecipeList> {
 
   Widget _buildRecipeLoader(BuildContext context) {
 // 1
-    if (_currentRecipes1 == null || _currentRecipes1?.hits == null) {
+    if (searchTextController.text.length < 3) {
       return Container();
     }
+// 2
+    return FutureBuilder<APIRecipeQuery>(
+// 3
+      future: getRecipeData(searchTextController.text.trim(),
+          currentStartPosition, currentEndPosition),
+// 4
+      builder: (context, snapshot) {
+// 5
+        if (snapshot.connectionState == ConnectionState.done) {
+// 6
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(snapshot.error.toString(),
+                  textAlign: TextAlign.center, textScaleFactor: 1.3),
+            );
+          }
+// 7
+          loading = false;
+          final query = snapshot.data;
+          inErrorState = false;
+          if (query != null) {
+            currentCount = query.count;
+            hasMore = query.more;
+            currentSearchList.addAll(query.hits);
+// 8
+            if (query.to < currentEndPosition) {
+              currentEndPosition = query.to;
+            }
+          }
+// 9
+          return _buildRecipeList(context, currentSearchList);
+        }
+// TODO: Handle not done connection
+        else {
+// 11
+          if (currentCount == 0) {
 // Show a loading indicator while waiting for the recipes
+            return const Center(child: CircularProgressIndicator());
+          } else {
+// 12
+            return _buildRecipeList(context, currentSearchList);
+          }
+        }
+      },
+    );
+  }
+
+  Widget _buildRecipeList(BuildContext recipeListContext, List<APIHits> hits) {
+// 2
+    final size = MediaQuery.of(context).size;
+    const itemHeight = 310;
+    final itemWidth = size.width / 2;
+// 3
     return Flexible(
-      child: ListView.builder(
-        itemCount: 1,
+      //4
+      child: GridView.builder(
+// 5
+        controller: _scrollController,
+// 6
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: (itemWidth / itemHeight),
+        ),
+// 7
+        itemCount: hits.length,
+// 8
         itemBuilder: (BuildContext context, int index) {
-          return Center(
-              child: _buildRecipeCard(context, _currentRecipes1!.hits, 0));
+          return _buildRecipeCard(recipeListContext, hits, index);
         },
       ),
     );
   }
 
   // TODO: Add _buildRecipeCard
+
   Widget _buildRecipeCard(
       BuildContext topLevelContext, List<APIHits> hits, int index) {
 // 1
