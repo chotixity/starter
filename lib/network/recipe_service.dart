@@ -1,31 +1,56 @@
-import 'dart:developer';
-import 'package:http/http.dart';
+// 1
+import 'package:chopper/chopper.dart';
+import 'recipe_model.dart';
+import 'model_response.dart';
+import 'model_converter.dart';
+part 'recipe_service.chopper.dart';
 
 const String apiKey = 'bdca7b66788fa99ef1bf7fc2369997f4';
 const String apiId = 'f360bd50';
-const String apiUrl = 'https://api.edamam.com/search';
+const String apiUrl = 'https://api.edamam.com';
 
-class RecipeService {
+// TODO: Add @ChopperApi() here
 // 1
-  Future getData(String url) async {
+@ChopperApi()
 // 2
-    final response = await get(Uri.parse(url));
-// 3
-    if (response.statusCode == 200) {
+abstract class RecipeService extends ChopperService {
+  @Get(path: 'search')
 // 4
-      return response.body;
-    } else {
+  Future<Response<Result<APIRecipeQuery>>> queryRecipes(
 // 5
-      log(response.body);
-    }
-  }
+      @Query('q') String query,
+      @Query('from') int from,
+      @Query('to') int to);
+// TODO: Add create()
 
-// TODO: Add getRecipes
-  Future<dynamic> getRecipes(String query, int from, int to) async {
+  static RecipeService create() {
+// 1
+    final client = ChopperClient(
 // 2
-    final recipeData = await getData(
-        '$apiUrl?app_id=$apiId&app_key=$apiKey&q=$query&from=$from&to=$to');
+      baseUrl: Uri.parse(apiUrl),
 // 3
-    return recipeData;
+      interceptors: [_addQuery, HttpLoggingInterceptor()],
+// 4
+      converter: ModelConverter(),
+// 5
+      errorConverter: const JsonConverter(),
+// 6
+      services: [
+        _$RecipeService(),
+      ],
+    );
+// 7
+    return _$RecipeService(client);
   }
+}
+
+// TODO: Add _addQuery()
+Request _addQuery(Request req) {
+// 1
+  final params = Map<String, dynamic>.from(req.parameters);
+// 2
+  params['app_id'] = apiId;
+  params['app_key'] = apiKey;
+// 3
+  return req.copyWith(parameters: params);
 }

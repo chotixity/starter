@@ -2,7 +2,6 @@ import 'dart:math';
 import 'dart:convert';
 import '../../network/recipe_service.dart';
 import '../../network/recipe_model.dart';
-import 'package:flutter/services.dart';
 import '../recipe_card.dart';
 import 'recipe_details.dart';
 import 'package:flutter/material.dart';
