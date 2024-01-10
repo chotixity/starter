@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'dart:convert';
 import '../../network/recipe_service.dart';
 import '../../network/recipe_model.dart';
 import '../recipe_card.dart';
@@ -8,6 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/custom_dropdown.dart';
 import '../colors.dart';
+import 'package:chopper/chopper.dart';
+import '../../network/model_response.dart';
+import 'dart:collection';
 
 class RecipeList extends StatefulWidget {
   const RecipeList({Key? key}) : super(key: key);
@@ -56,12 +58,6 @@ class _RecipeListState extends State<RecipeList> {
         }
       }
     });
-  }
-
-  Future<APIRecipeQuery> getRecipeData(String query, int from, int to) async {
-    final recipeJson = await RecipeService().getRecipes(query, from, to);
-    final recipeMap = json.decode(recipeJson);
-    return APIRecipeQuery.fromJson(recipeMap);
   }
 
   // TODO: Add loadRecipes
@@ -223,24 +219,53 @@ class _RecipeListState extends State<RecipeList> {
       return Container();
     }
 // 2
-    return FutureBuilder<APIRecipeQuery>(
+    return FutureBuilder<Response<Result<APIRecipeQuery>>>(
 // 3
-      future: getRecipeData(searchTextController.text.trim(),
-          currentStartPosition, currentEndPosition),
-// 4
+      future: RecipeService.create().queryRecipes(
+          searchTextController.text.trim(),
+          currentStartPosition,
+          currentEndPosition),
       builder: (context, snapshot) {
 // 5
         if (snapshot.connectionState == ConnectionState.done) {
 // 6
           if (snapshot.hasError) {
             return Center(
-              child: Text(snapshot.error.toString(),
-                  textAlign: TextAlign.center, textScaleFactor: 1.3),
+              child: Text(
+                snapshot.error.toString(),
+                textAlign: TextAlign.center,
+                textScaler: const TextScaler.linear(1.3),
+              ),
             );
           }
 // 7
           loading = false;
-          final query = snapshot.data;
+          // 1
+          if (false == snapshot.data?.isSuccessful) {
+            var errorMessage = 'Problems getting data';
+// 2
+            if (snapshot.data?.error != null &&
+                snapshot.data?.error is LinkedHashMap) {
+              final map = snapshot.data?.error as LinkedHashMap;
+              errorMessage = map['message'];
+            }
+            return Center(
+              child: Text(
+                errorMessage,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18.0),
+              ),
+            );
+          }
+// 3
+          final result = snapshot.data?.body;
+          if (result == null || result is Error) {
+// Hit an error
+            inErrorState = true;
+            return _buildRecipeList(context, currentSearchList);
+          }
+// 4
+          final query = (result as Success).value;
           inErrorState = false;
           if (query != null) {
             currentCount = query.count;
